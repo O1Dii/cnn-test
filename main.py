@@ -45,8 +45,9 @@ def create_model():
     model = keras.models.Sequential()
 
     model.add(keras.layers.Conv2D(32, (3, 3), input_shape=(28, 28, 1), activation='relu'))
-    model.add(keras.layers.Conv2D(64, (3, 3), activation='relu'))
     model.add(keras.layers.MaxPooling2D((2, 2)))
+    model.add(keras.layers.Dropout(0.25))
+    model.add(keras.layers.Dense(32, input_shape=(70000, 10), activation='relu'))
     model.add(keras.layers.Dropout(0.25))
     model.add(keras.layers.Flatten())
     model.add(keras.layers.Dense(10, activation='softmax'))
@@ -57,14 +58,21 @@ def create_model():
 
 
 def train_model(model, x_train, y_train, batch_size=128, epochs=1):
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs,
+              callbacks=[keras.callbacks.EarlyStopping(monitor='loss', patience=3)])
 
 
 app = QtWidgets.QApplication(sys.argv)
 model = create_model()
-model.load_weights('second_brain.h5')
+(x_train, y_train), (x_test, y_test) = prepare_data()
+x = np.concatenate((x_train, x_test))
+y = np.concatenate((y_train, y_test))
+# train_model(model, x, y, epochs=2)
+model.load_weights('brain.h5')
 image = load_custom_image()
-print(np.argmax(model.predict(image)))
+init_prediction = model.predict(image)
+print(init_prediction, np.argmax(init_prediction))
+# model.save_weights('brain.h5')
 
 
 class Window(QtWidgets.QWidget):
@@ -139,9 +147,10 @@ class MainWindow(QtWidgets.QWidget):
         self.setLayout(self.layout)
 
     def button_click(self):
-        data = normalize_array(self.canvas.get_array(), 1)
+        image_arr = self.canvas.get_array()
+        data = normalize_array(image_arr, 1)
         prediction = model.predict(data)
-        print(prediction)
+        print(prediction, np.argmax(prediction))
         self.label.setText(str(np.argmax(prediction)))
 
     def clear_button_click(self):
